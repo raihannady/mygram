@@ -10,7 +10,7 @@ import (
 
 var secretKey = "mygram"
 
-func GenerateToken(id int64, email string) string {
+func GenerateToken(id uint, email string) string {
 	claims := jwt.MapClaims{
 		"id": id,
 		"email": email,
@@ -34,12 +34,15 @@ func VerifyToken(c *gin.Context) (interface{}, error) {
 
 	stringToken := strings.Split(headerToken, " ")[1]
 
+	// fmt.Println("Token", stringToken)
+
 	token, _ := jwt.Parse(stringToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errResponse
 		}
 		return []byte(secretKey), nil
 	})
+	
 
 	if _, ok := token.Claims.(jwt.MapClaims); !ok && !token.Valid {
 		return nil, errResponse

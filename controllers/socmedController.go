@@ -5,7 +5,9 @@ import (
 	"mygram/helpers"
 	"mygram/models"
 	"net/http"
+	"strconv"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,15 +18,19 @@ import (
 func CreateSocialMediaRequest(c *gin.Context) {
 
 	db := database.GetDB()
+	userData := c.MustGet("userData").(jwt.MapClaims)
 	contentType := helpers.GetContentType(c)
-	_, _ = db, contentType
+
 	SocialMedia := models.SocialMedia{}
+	userID := uint(userData["id"].(float64))
 
 	if contentType == appJSON {
 		c.ShouldBindJSON(&SocialMedia)
 	} else {
 		c.ShouldBind(&SocialMedia)
 	}
+
+	SocialMedia.UserID = userID
 
 	err := db.Debug().Create(&SocialMedia).Error
 
@@ -36,9 +42,7 @@ func CreateSocialMediaRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"social_media": SocialMedia,
-	})
+	c.JSON(http.StatusCreated, SocialMedia)
 
 }
 
@@ -46,20 +50,47 @@ func GetSocialMedia(c *gin.Context) {
 
 	db := database.GetDB()
 	contentType := helpers.GetContentType(c)
-	_, _ = db, contentType
-	SocialMedia := []models.SocialMedia{}
+	userData := c.MustGet("userData").(jwt.MapClaims)
+	userID := uint(userData["id"].(float64))
+	var socialmedia []models.SocialMedia
 
-	err := db.Debug().Find(&SocialMedia).Error
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Bad Request",
-			"message": err.Error(),
-		})
-		return
+	if contentType == appJSON {
+		c.ShouldBindJSON(&socialmedia)
+	} else {
+		c.ShouldBind(&socialmedia)
 	}
 
-	c.JSON(http.StatusOK, SocialMedia)
+	var err error
+
+	err = db.Debug().Where("user_id = ?", userID).Find(&socialmedia).Error
+
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":   "Bad Request",
+            "message": err.Error(),
+        })
+        return
+    }
+
+
+	var responseData []gin.H
+    for _, socialmedia := range socialmedia {
+        user := models.User{}            
+        db.First(&user, socialmedia.UserID)
+
+        responseData = append(responseData, gin.H{
+            "id":        socialmedia.ID,
+            "name":      socialmedia.Name,
+            "user_id":   socialmedia.UserID,
+            "user": gin.H{
+                "id":       user.ID,
+                "email":    user.Email,
+                "username": user.Username,
+            },
+        })
+    }
+
+    c.JSON(http.StatusOK, responseData)
 }
 
 func GetSocialMediaByID(c *gin.Context) {
@@ -67,9 +98,9 @@ func GetSocialMediaByID(c *gin.Context) {
 	db := database.GetDB()
 	contentType := helpers.GetContentType(c)
 	_, _ = db, contentType
-	SocialMedia := models.SocialMedia{}
+	var socialmedia []models.SocialMedia
 
-	err := db.Debug().Where("id = ?", c.Param("socialMediaID")).First(&SocialMedia).Error
+	err := db.Debug().Where("id = ?", c.Param("socialMediaID")).First(&socialmedia).Error
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -79,25 +110,34 @@ func GetSocialMediaByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, SocialMedia)
+	var responseData []gin.H
+    for _, socialmedia := range socialmedia {
+        user := models.User{}            
+        db.First(&user, socialmedia.UserID)
+
+        responseData = append(responseData, gin.H{
+            "id":        socialmedia.ID,
+            "name":      socialmedia.Name,
+            "user_id":   socialmedia.UserID,
+            "user": gin.H{
+                "id":       user.ID,
+                "email":    user.Email,
+                "username": user.Username,
+            },
+        })
+    }
+
+    c.JSON(http.StatusOK, responseData)
 }
 
 func UpdateSocialMediaRequest(c *gin.Context) {
-
 	db := database.GetDB()
+	userData := c.MustGet("userData").(jwt.MapClaims)
 	contentType := helpers.GetContentType(c)
-	_, _ = db, contentType
 	SocialMedia := models.SocialMedia{}
 
-	err := db.Debug().Where("id = ?", c.Param("socialMediaID")).First(&SocialMedia).Error
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Bad Request",
-			"message": err.Error(),
-		})
-		return
-	}
+	socmedId, _ := strconv.Atoi(c.Param("socialMediaID"))
+	userID := uint(userData["id"].(float64))
 
 	if contentType == appJSON {
 		c.ShouldBindJSON(&SocialMedia)
@@ -105,7 +145,11 @@ func UpdateSocialMediaRequest(c *gin.Context) {
 		c.ShouldBind(&SocialMedia)
 	}
 
-	err = db.Debug().Model(&SocialMedia).Updates(&SocialMedia).Error
+	SocialMedia.UserID = userID
+	SocialMedia.ID = uint(socmedId)
+
+
+	err := db.Model(&SocialMedia).Where("id = ?", socmedId).Updates(models.SocialMedia{Name: SocialMedia.Name, SocialMediaUrl: SocialMedia.SocialMediaUrl}).Error
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -119,11 +163,15 @@ func UpdateSocialMediaRequest(c *gin.Context) {
 }
 
 func DeleteSocialMedia(c *gin.Context) {
-
 	db := database.GetDB()
 	contentType := helpers.GetContentType(c)
-	_, _ = db, contentType
 	SocialMedia := models.SocialMedia{}
+
+	if contentType == appJSON {
+		c.ShouldBindJSON(&SocialMedia)
+	} else {
+		c.ShouldBind(&SocialMedia)
+	}
 
 	err := db.Debug().Where("id = ?", c.Param("socialMediaID")).Delete(&SocialMedia).Error
 
@@ -136,6 +184,5 @@ func DeleteSocialMedia(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Your social media has been successfully deleted",
 	})
 }

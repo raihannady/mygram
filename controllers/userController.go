@@ -6,6 +6,8 @@ import (
 	"mygram/models"
 	"net/http"
 
+	// "regexp"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,78 +16,115 @@ var (
 )
 
 func UserRegister(c *gin.Context) {
+    db := database.GetDB()
+    contentType := helpers.GetContentType(c)
+    _, _ = db, contentType
+    User := models.User{}
 
-	db := database.GetDB()
-	contentType := helpers.GetContentType(c)
-	_, _ = db, contentType
-	User := models.User{}
+    if contentType == appJSON {
+        c.ShouldBindJSON(&User)
+    } else {
+        c.ShouldBind(&User)
+    }
 
-	if contentType == appJSON {
-		c.ShouldBindJSON(&User)
-	} else {
-		c.ShouldBind(&User)
-	}
+    var registerInput models.RegisterInput
+    if err := c.ShouldBindJSON(&registerInput); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":   "Bad Request",
+            "message": err.Error(),
+        })
+        return
+    }
 
-	err := db.Debug().Create(&User).Error
+    var existingUser models.User
+    if err := db.Where("email = ?", registerInput.Email).First(&existingUser).Error; err == nil {
+        c.JSON(http.StatusConflict, gin.H{
+            "error":   "Conflict",
+            "message": "Email already exists",
+        })
+        return
+    }
 
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Bad Request",
-			"message": err.Error(),
+	var existingUsername models.User
+	if err := db.Where("username = ?", registerInput.Username).First(&existingUsername).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":   "Conflict",
+			"message": "Username already exists",
 		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id":     User.ID,
-		"email":  User.Email,
-		"username":   User.Username,
-		"age":    User.Age,
-		"profile_image_url": User.Photos,
-	})
+    User.Email = registerInput.Email
+    User.Username = registerInput.Username
+    User.Age = registerInput.Age
+    User.Password = helpers.HashPassword(registerInput.Password)
+
+
+    err := db.Debug().Create(&User).Error
+
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":   "Bad Request",
+            "message": err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusCreated, gin.H{
+        "id":       User.ID,
+        "email":    User.Email,
+        "username": User.Username,
+        "age":      User.Age,
+    })
 }
+
 
 func UserLogin(c *gin.Context) {
-	db := database.GetDB()
-	contentType := helpers.GetContentType(c)
-	_, _ = db, contentType
-	User := models.User{}
-	password := ""
+    db := database.GetDB()
+    contentType := helpers.GetContentType(c)
+    _, _ = db, contentType
+    User := models.User{}
+    password := ""
 
-	if contentType == appJSON {
-		c.ShouldBindJSON(&User)
-	} else {
-		c.ShouldBind(&User)
-	}
+    var loginInput models.SignInInput
+    if err := c.ShouldBindJSON(&loginInput); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":   "Bad Request",
+            "message": err.Error(), 
+        })
+        return
+    }
 
-	password = User.Password
+    User.Email = loginInput.Email
+    password = loginInput.Password
 
-	err := db.Debug().Where("email = ?", User.Email).Take(&User).Error
+    err := db.Debug().Where("email = ?", User.Email).Take(&User).Error
 
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Unauthorized",
-			"message": "invalid email/password",
-		})
-		return
-	}
+    if err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{
+            "error":   "Unauthorized",
+            "message": "Invalid email/password",
+        })
+        return
+    }
 
-	comparePass := helpers.ComparePass([]byte(User.Password), []byte(password))
+    comparePass := helpers.ComparePass([]byte(User.Password), []byte(password))
 
-	if !comparePass {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Unauthorized",
-			"message": "invalid email/password",
-		})
-		return
-	}
+    if !comparePass {
+        c.JSON(http.StatusUnauthorized, gin.H{
+            "error":   "Unauthorized",
+            "message": "Invalid email/password",
+        }) 
+        return
+    }
 
-	token := helpers.GenerateToken(User.ID, User.Email)
+    token := helpers.GenerateToken(User.ID, User.Email)
 
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-	})
+    c.JSON(http.StatusOK, gin.H{
+        "token": token,
+    })
 }
+
 
 func UpdateUser(c *gin.Context) {
 	db := database.GetDB()
