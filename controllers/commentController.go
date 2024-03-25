@@ -21,8 +21,6 @@ func CreateComment(c *gin.Context) {
 	userData := c.MustGet("userData").(jwt.MapClaims)
 	contentType := helpers.GetContentType(c)
 
-	
-
 	Comment := models.Comment{}
 	var CreateComment models.CreateComment
 	Comment.PhotoID = CreateComment.PhotoID

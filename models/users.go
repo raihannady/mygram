@@ -13,16 +13,18 @@ type User struct {
 	Email        string        `gorm:"size:150;not null"`
 	Password     string        `gorm:"type:text;not null"`
 	Age          int           `gorm:"not null"`
+	ProfileImage string		   `gorm:"type:text"`
 	Photos       []Photo       `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 	Comments     []Comment     `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 	SocialMedias []SocialMedia `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 }
 
 type RegisterInput struct {
-	Username string `json:"username" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Username string `json:"username" binding:"required"`
 	Age      int    `json:"age" binding:"required,gte=8"`
+	Password string `json:"password" binding:"required,min=6"`
+	ProfileImage string `json:"profile_image_url" validate:"omitempty,url"`
 }
 
 type SignInInput struct {
@@ -49,3 +51,4 @@ func (u *RegisterInput) BeforeCreate(tx *gorm.DB) (err error) {
 	err = nil
 	return
 }
+

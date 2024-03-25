@@ -59,6 +59,7 @@ func UserRoutes(r *gin.Engine) {
     {
         userRouter.POST("/register", controllers.UserRegister)
         userRouter.POST("/login", controllers.UserLogin)
+        userRouter.Use(middlewares.Authentication())
         userRouter.PUT("/:userID", middlewares.UserAuthorization(), controllers.UpdateUser)
         userRouter.DELETE("/:userID", middlewares.UserAuthorization(), controllers.DeleteUser)
     }

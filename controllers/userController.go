@@ -18,46 +18,55 @@ var (
 func UserRegister(c *gin.Context) {
     db := database.GetDB()
     contentType := helpers.GetContentType(c)
-    _, _ = db, contentType
     User := models.User{}
 
+    
     if contentType == appJSON {
         c.ShouldBindJSON(&User)
     } else {
         c.ShouldBind(&User)
     }
 
-    var registerInput models.RegisterInput
-    if err := c.ShouldBindJSON(&registerInput); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error":   "Bad Request",
-            "message": err.Error(),
-        })
-        return
-    }
+    // var registerInput models.RegisterInput
 
-    var existingUser models.User
-    if err := db.Where("email = ?", registerInput.Email).First(&existingUser).Error; err == nil {
-        c.JSON(http.StatusConflict, gin.H{
-            "error":   "Conflict",
-            "message": "Email already exists",
-        })
-        return
-    }
+    // if contentType == appJSON {
+    //     log.Println("JSON request received:", registerInput)
+    //     c.ShouldBindJSON(&registerInput)
+    //     log.Println("Parsed User:", registerInput)
+    // } else {
+    //     c.ShouldBind(&registerInput)
+    // }
+    
+    // if err := c.ShouldBindJSON(&registerInput); err != nil {
+    //     c.JSON(http.StatusBadRequest, gin.H{
+    //         "error":   "Bad Request",
+    //         "message": err.Error(),
+    //     })
+    //     return
+    // }
 
-	var existingUsername models.User
-	if err := db.Where("username = ?", registerInput.Username).First(&existingUsername).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{
-			"error":   "Conflict",
-			"message": "Username already exists",
-		})
-		return
-	}
+    // var existingUser models.User
+    // if err := db.Where("email = ?", registerInput.Email).First(&existingUser).Error; err == nil {
+    //     c.JSON(http.StatusConflict, gin.H{
+    //         "error":   "Conflict",
+    //         "message": "Email already exists",
+    //     })
+    //     return
+    // }
 
-    User.Email = registerInput.Email
-    User.Username = registerInput.Username
-    User.Age = registerInput.Age
-    User.Password = helpers.HashPassword(registerInput.Password)
+	// var existingUsername models.User
+	// if err := db.Where("username = ?", registerInput.Username).First(&existingUsername).Error; err == nil {
+	// 	c.JSON(http.StatusConflict, gin.H{
+	// 		"error":   "Conflict",
+	// 		"message": "Username already exists",
+	// 	})
+	// 	return
+	// }
+
+    // User.Email = registerInput.Email
+    // User.Username = registerInput.Username
+    // User.Age = registerInput.Age
+    User.Password = helpers.HashPassword(User.Password)
 
 
     err := db.Debug().Create(&User).Error
@@ -75,6 +84,7 @@ func UserRegister(c *gin.Context) {
         "email":    User.Email,
         "username": User.Username,
         "age":      User.Age,
+        "profile_image_url": User.ProfileImage,
     })
 }
 
@@ -153,6 +163,7 @@ func UpdateUser(c *gin.Context) {
 		"email":  User.Email,
 		"username":   User.Username,
 		"age":    User.Age,
+        "profile_image_url": User.ProfileImage,
 	})
 	
 }

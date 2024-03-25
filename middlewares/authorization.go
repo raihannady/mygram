@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"fmt"
 	"mygram/database"
 	"mygram/models"
 	"net/http"
@@ -130,10 +131,12 @@ func UserAuthorization() gin.HandlerFunc {
 			return
 		}
 		userData := c.MustGet("userData").(jwt.MapClaims)
-		userID := uint(userData["id"].(float64))
-		User := models.SocialMedia{}
+		userID := int(userData["id"].(float64))
+		fmt.Println(userID)
+		User := models.User{}
+		fmt.Println(userId)
 
-		err = db.Select("user_id").First(&User, uint(userId)).Error
+		err = db.Select("id").First(&User, uint(userId)).Error
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
@@ -143,7 +146,7 @@ func UserAuthorization() gin.HandlerFunc {
 			return
 		}
 
-		if User.UserID != userID {
+		if userId != userID {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error":   "Unauthorized",
 				"message": "You are not allowed to access this data",
